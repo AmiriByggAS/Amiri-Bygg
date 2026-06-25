@@ -1,0 +1,6 @@
+{
+  "name": "Amiri Bygg",
+  "description": "Premium Scandinavian website for Amiri Bygg, a complete renovation and construction project partner in Norway.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
