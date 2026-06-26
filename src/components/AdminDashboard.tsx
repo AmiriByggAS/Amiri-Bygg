@@ -75,7 +75,26 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
   }, [lockoutTimeLeft]);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<"leads" | "media" | "gmail">("leads");
+  const [activeTab, setActiveTab] = useState<"leads" | "media" | "services" | "gmail">("leads");
+
+  // Custom Content Editors
+  const [editingService, setEditingService] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<number | null>(null);
+
+  const [serviceForm, setServiceForm] = useState({
+    title: "",
+    description: "",
+    fullDetails: "",
+    badge: "",
+  });
+
+  const [projectForm, setProjectForm] = useState({
+    title: "",
+    location: "",
+    size: "",
+    duration: "",
+    completionYear: "",
+  });
 
   // Core Data
   const [leads, setLeads] = useState<any[]>([]);
@@ -294,6 +313,7 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
       "amiri_custom_project_4",
       "amiri_custom_project_5",
       "amiri_custom_project_6",
+      ...Object.keys(t.services.items).map(k => `amiri_custom_service_${k}_image`)
     ];
     const loadedMedia: Record<string, string | null> = {};
     keys.forEach((k) => {
@@ -420,35 +440,85 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
     window.dispatchEvent(new Event("storage"));
   };
 
+  // Compress image on the client side to keep localStorage quota happy and Firestore fast
+  const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          // Downscale only if image exceeds our max dimensions
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(event.target?.result as string); // fallback to original
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Use JPEG format for smaller file sizes, except for PNG/SVGs
+          const isPng = file.type === "image/png" || file.type === "image/svg+xml";
+          const mimeType = isPng ? "image/png" : "image/jpeg";
+          const dataUrl = canvas.toDataURL(mimeType, quality);
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   // Media Upload Logic
-  const handleMediaUpload = (key: string, file: File) => {
+  const handleMediaUpload = async (key: string, file: File) => {
     setUploadLoading((prev) => ({ ...prev, [key]: true }));
+    try {
+      // 1. Compress image to fit 1.5MB localstorage & Firestore rules instantly
+      const base64 = await compressImage(file, 1200, 1200, 0.8);
+      
+      // 2. Save locally
+      localStorage.setItem(key, base64);
+      setMediaPreviews((prev) => ({ ...prev, [key]: base64 }));
+      
+      // Dispatch custom events to notify other components to re-render dynamically
+      window.dispatchEvent(new Event("amiri_images_updated"));
+      window.dispatchEvent(new Event("amiri_logo_updated"));
+      window.dispatchEvent(new Event("amiri_services_updated"));
+      window.dispatchEvent(new Event("amiri_projects_updated"));
+      window.dispatchEvent(new Event("storage"));
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64 = reader.result as string;
-        localStorage.setItem(key, base64);
-        setMediaPreviews((prev) => ({ ...prev, [key]: base64 }));
-        
-        // Dispatch custom events to notify other components to re-render dynamically
-        window.dispatchEvent(new Event("amiri_images_updated"));
-        window.dispatchEvent(new Event("amiri_logo_updated"));
-        window.dispatchEvent(new Event("storage"));
-
-        // Sync to Firestore global database
-        await saveGlobalMediaSetting(key, base64);
-      } catch (err) {
-        alert(
-          lang === "no" 
-            ? "Feil: Bildet er for stort. Prøv et mindre bilde (under 1.5MB) for optimal ytelse."
-            : "Error: Image file is too large. Please use a smaller image (under 1.5MB) for fast local storage."
-        );
-      } finally {
-        setUploadLoading((prev) => ({ ...prev, [key]: false }));
-      }
-    };
-    reader.readAsDataURL(file);
+      // 3. Sync to Firestore global database
+      await saveGlobalMediaSetting(key, base64);
+    } catch (err) {
+      console.error("Failed to compress or upload image:", err);
+      alert(
+        lang === "no" 
+          ? "Feil under opplasting eller komprimering av bilde. Prøv et annet bilde."
+          : "Error uploading or compressing image. Please try another image."
+      );
+    } finally {
+      setUploadLoading((prev) => ({ ...prev, [key]: false }));
+    }
   };
 
   // Clear Custom Media
@@ -458,10 +528,112 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
       setMediaPreviews((prev) => ({ ...prev, [key]: null }));
       window.dispatchEvent(new Event("amiri_images_updated"));
       window.dispatchEvent(new Event("amiri_logo_updated"));
+      window.dispatchEvent(new Event("amiri_services_updated"));
+      window.dispatchEvent(new Event("amiri_projects_updated"));
       window.dispatchEvent(new Event("storage"));
 
       // Sync removal to Firestore global database
       await saveGlobalMediaSetting(key, null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSaveService = async (key: string) => {
+    try {
+      localStorage.setItem(`amiri_custom_service_${key}_title`, serviceForm.title);
+      localStorage.setItem(`amiri_custom_service_${key}_description`, serviceForm.description);
+      localStorage.setItem(`amiri_custom_service_${key}_fullDetails`, serviceForm.fullDetails);
+      localStorage.setItem(`amiri_custom_service_${key}_badge`, serviceForm.badge);
+
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_title`, serviceForm.title || "");
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_description`, serviceForm.description || "");
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_fullDetails`, serviceForm.fullDetails || "");
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_badge`, serviceForm.badge || "");
+
+      window.dispatchEvent(new Event("amiri_services_updated"));
+      window.dispatchEvent(new Event("storage"));
+
+      setEditingService(null);
+      alert(lang === "no" ? "Endringer lagret globalt for tjenesten!" : "Service edits saved globally!");
+    } catch (err) {
+      console.error(err);
+      alert("Error saving service content.");
+    }
+  };
+
+  const handleResetService = async (key: string) => {
+    if (!window.confirm(lang === "no" ? "Vil du fjerne alle tilpasninger for denne tjenesten og gå tilbake til standard?" : "Reset all modifications on this service to system default?")) return;
+    try {
+      localStorage.removeItem(`amiri_custom_service_${key}_title`);
+      localStorage.removeItem(`amiri_custom_service_${key}_description`);
+      localStorage.removeItem(`amiri_custom_service_${key}_fullDetails`);
+      localStorage.removeItem(`amiri_custom_service_${key}_badge`);
+      localStorage.removeItem(`amiri_custom_service_${key}_image`);
+
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_title`, null);
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_description`, null);
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_fullDetails`, null);
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_badge`, null);
+      await saveGlobalMediaSetting(`amiri_custom_service_${key}_image`, null);
+
+      setMediaPreviews(prev => ({ ...prev, [`amiri_custom_service_${key}_image`]: null }));
+
+      window.dispatchEvent(new Event("amiri_services_updated"));
+      window.dispatchEvent(new Event("storage"));
+
+      setEditingService(null);
+      alert(lang === "no" ? "Tjenesten ble tilbakestilt til standard!" : "Service restored to defaults!");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSaveProject = async (id: number) => {
+    try {
+      localStorage.setItem(`amiri_custom_project_${id}_title`, projectForm.title);
+      localStorage.setItem(`amiri_custom_project_${id}_location`, projectForm.location);
+      localStorage.setItem(`amiri_custom_project_${id}_size`, projectForm.size);
+      localStorage.setItem(`amiri_custom_project_${id}_duration`, projectForm.duration);
+      localStorage.setItem(`amiri_custom_project_${id}_completion`, projectForm.completionYear);
+
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_title`, projectForm.title || "");
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_location`, projectForm.location || "");
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_size`, projectForm.size || "");
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_duration`, projectForm.duration || "");
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_completion`, projectForm.completionYear || "");
+
+      window.dispatchEvent(new Event("amiri_projects_updated"));
+      window.dispatchEvent(new Event("storage"));
+
+      setEditingProject(null);
+      alert(lang === "no" ? "Prosjektets detaljer ble lagret globalt!" : "Project details saved globally!");
+    } catch (err) {
+      console.error(err);
+      alert("Error saving project content.");
+    }
+  };
+
+  const handleResetProjectText = async (id: number) => {
+    if (!window.confirm(lang === "no" ? "Sikker på at du vil tilbakestille tekstene for dette prosjektet?" : "Reset text fields on this project to defaults?")) return;
+    try {
+      localStorage.removeItem(`amiri_custom_project_${id}_title`);
+      localStorage.removeItem(`amiri_custom_project_${id}_location`);
+      localStorage.removeItem(`amiri_custom_project_${id}_size`);
+      localStorage.removeItem(`amiri_custom_project_${id}_duration`);
+      localStorage.removeItem(`amiri_custom_project_${id}_completion`);
+
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_title`, null);
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_location`, null);
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_size`, null);
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_duration`, null);
+      await saveGlobalMediaSetting(`amiri_custom_project_${id}_completion`, null);
+
+      window.dispatchEvent(new Event("amiri_projects_updated"));
+      window.dispatchEvent(new Event("storage"));
+
+      setEditingProject(null);
+      alert(lang === "no" ? "Prosjekttekstene ble tilbakestilt til standard!" : "Project texts restored to defaults!");
     } catch (err) {
       console.error(err);
     }
@@ -678,6 +850,17 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
           >
             <Image className="w-4 h-4" />
             <span>{lang === "no" ? "🖼️ Bytt ut Bilder & Logo" : "🖼️ Customize Images & Logo"}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("services")}
+            className={`py-3 px-6 font-sans text-xs font-bold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "services" 
+                ? "border-brand-taupe text-brand-taupe bg-white/[0.02]" 
+                : "border-transparent text-stone-400 hover:text-stone-200"
+            }`}
+          >
+            <Sliders className="w-4 h-4" />
+            <span>{lang === "no" ? "✏️ Tjenester & Innhold" : "✏️ Services & Content"}</span>
           </button>
           <button
             onClick={() => setActiveTab("gmail")}
@@ -1285,6 +1468,426 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
                           </button>
                         )}
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2.5 CONTENT: SERVICES AND CONTENT CUSTOMIZER */}
+        {activeTab === "services" && (
+          <div className="space-y-12 animate-fadeIn text-left">
+            <div>
+              <h3 className="text-base font-bold font-sans tracking-widest uppercase text-stone-200 flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-brand-taupe" />
+                {lang === "no" ? "Tjenester & Innholdsredigering" : "Services & Content Customizer"}
+              </h3>
+              <p className="text-stone-400 text-xs font-light mt-1 max-w-3xl leading-relaxed">
+                {lang === "no"
+                  ? "Her kan du tilpasse både teksten og bildene for alle de 15 tjenestene og de 6 referanseprosjektene dine. Alle endringer lagres globalt og oppdateres for alle besøkende."
+                  : "Customize both the text narrative and associated images for your 15 core services and 6 portfolio projects. Edits persist globally."}
+              </p>
+            </div>
+
+            {/* SEKTION 1: VÅRE TJENESTER */}
+            <div className="space-y-6">
+              <h4 className="text-sm font-bold font-sans tracking-widest uppercase text-brand-taupe border-b border-white/5 pb-2">
+                {lang === "no" ? "1. Tilpass Våre Tjenester" : "1. Customize Our Services"}
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Object.entries(t.services.items).map(([key, service]) => {
+                  const isEditing = editingService === key;
+                  
+                  // Retrieve current custom values (fallback to default translation fields)
+                  const currentTitle = localStorage.getItem(`amiri_custom_service_${key}_title`) || service.title;
+                  const currentDesc = localStorage.getItem(`amiri_custom_service_${key}_description`) || service.description;
+                  const currentFull = localStorage.getItem(`amiri_custom_service_${key}_fullDetails`) || service.fullDetails;
+                  const currentBadge = localStorage.getItem(`amiri_custom_service_${key}_badge`) || service.badge;
+                  const currentImg = mediaPreviews[`amiri_custom_service_${key}_image` || ""];
+                  const isImgLoading = uploadLoading[`amiri_custom_service_${key}_image` || ""];
+
+                  return (
+                    <div 
+                      key={key} 
+                      className="p-6 bg-stone-950/60 border border-white/5 flex flex-col justify-between hover:border-white/10 transition-colors"
+                    >
+                      {isEditing ? (
+                        <div className="space-y-4 animate-fadeIn">
+                          <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-2">
+                            <span className="text-[10px] font-mono text-brand-taupe uppercase tracking-widest font-bold">
+                              {lang === "no" ? `Redigerer: ${key}` : `Editing: ${key}`}
+                            </span>
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                              {lang === "no" ? "Tittel" : "Title"}
+                            </label>
+                            <input
+                              type="text"
+                              value={serviceForm.title}
+                              onChange={(e) => setServiceForm(prev => ({ ...prev, title: e.target.value }))}
+                              className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white py-2 px-3 rounded-none outline-none font-sans"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                              {lang === "no" ? "Kort Beskrivelse" : "Short Description"}
+                            </label>
+                            <input
+                              type="text"
+                              value={serviceForm.description}
+                              onChange={(e) => setServiceForm(prev => ({ ...prev, description: e.target.value }))}
+                              className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white py-2 px-3 rounded-none outline-none font-sans"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                              {lang === "no" ? "Detaljert Beskrivelse (Befaringsdetaljer)" : "Detailed Narrative (Full Details)"}
+                            </label>
+                            <textarea
+                              rows={4}
+                              value={serviceForm.fullDetails}
+                              onChange={(e) => setServiceForm(prev => ({ ...prev, fullDetails: e.target.value }))}
+                              className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white p-3 rounded-none outline-none font-sans leading-relaxed resize-none"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                                {lang === "no" ? "Skilt / Badge" : "Badge Tag"}
+                              </label>
+                              <input
+                                type="text"
+                                value={serviceForm.badge}
+                                placeholder="t.eks. Garanti"
+                                onChange={(e) => setServiceForm(prev => ({ ...prev, badge: e.target.value }))}
+                                className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white py-2 px-3 rounded-none outline-none font-sans"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                                {lang === "no" ? "Tjenestebilde" : "Service Photo"}
+                              </label>
+                              <label className="block">
+                                <span className="cursor-pointer flex items-center justify-center gap-1.5 border border-brand-taupe/20 bg-brand-taupe/5 hover:bg-brand-taupe/20 text-brand-taupe text-[10px] font-mono tracking-wider uppercase py-2 transition-all text-center">
+                                  <Upload className="w-3.5 h-3.5" />
+                                  <span>{lang === "no" ? "Velg bilde" : "Upload File"}</span>
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleMediaUpload(`amiri_custom_service_${key}_image`, file);
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Image preview box in form */}
+                          <div className="aspect-[21/9] relative bg-stone-900 border border-white/5 flex items-center justify-center overflow-hidden">
+                            {isImgLoading ? (
+                              <RefreshCw className="w-4 h-4 animate-spin text-brand-taupe" />
+                            ) : currentImg ? (
+                              <img
+                                src={currentImg}
+                                alt="Service custom"
+                                className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <span className="text-[10px] font-mono text-stone-600 uppercase">
+                                {lang === "no" ? "Ikke eget bilde (Kun ikon)" : "No custom image (Uses icon)"}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSaveService(key)}
+                              className="flex-1 bg-brand-taupe hover:bg-white text-brand-charcoal font-bold text-[10px] font-mono tracking-widest uppercase py-2 transition-all cursor-pointer"
+                            >
+                              {lang === "no" ? "Lagre globalt" : "Save Global"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingService(null)}
+                              className="flex-1 border border-stone-800 bg-stone-900 hover:bg-stone-800 text-stone-400 text-[10px] font-mono tracking-widest uppercase py-2 transition-all"
+                            >
+                              {lang === "no" ? "Avbryt" : "Cancel"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResetService(key)}
+                              className="border border-red-500/20 bg-red-500/5 hover:bg-red-500/20 text-red-400 px-3 transition-all text-[10px] font-mono tracking-widest uppercase cursor-pointer"
+                              title="Reset"
+                            >
+                              {lang === "no" ? "Nullstill" : "Reset"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col justify-between h-full">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-2">
+                              <h5 className="text-xs font-bold text-stone-200 uppercase tracking-wider font-sans">
+                                {currentTitle}
+                              </h5>
+                              {currentBadge && (
+                                <span className="text-[8px] bg-brand-taupe/10 text-brand-taupe border border-brand-taupe/20 px-1.5 py-0.5 uppercase tracking-wider font-bold">
+                                  {currentBadge}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-stone-400 text-xs font-light min-h-[36px] leading-relaxed">
+                              {currentDesc}
+                            </p>
+
+                            <p className="text-stone-500 text-[11px] font-light line-clamp-2 italic leading-relaxed">
+                              "{currentFull}"
+                            </p>
+
+                            <div className="aspect-[21/9] relative bg-stone-900 border border-white/5 flex items-center justify-center overflow-hidden">
+                              {currentImg ? (
+                                <img
+                                  src={currentImg}
+                                  alt="Service custom Preview"
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <span className="text-[9px] font-mono text-stone-600 uppercase tracking-widest">
+                                  {lang === "no" ? "Eget bilde ikke aktivt" : "No custom photo uploaded"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingService(key);
+                                setServiceForm({
+                                  title: currentTitle,
+                                  description: currentDesc,
+                                  fullDetails: currentFull,
+                                  badge: currentBadge,
+                                });
+                              }}
+                              className="flex-1 bg-stone-900 hover:bg-brand-taupe/20 border border-white/5 hover:border-brand-taupe/20 text-stone-300 hover:text-brand-taupe text-[10px] font-mono tracking-widest uppercase py-2 transition-all cursor-pointer"
+                            >
+                              {lang === "no" ? "✏️ Rediger" : "✏️ Edit Content"}
+                            </button>
+                            {currentImg && (
+                              <button
+                                type="button"
+                                onClick={() => handleClearMedia(`amiri_custom_service_${key}_image`)}
+                                className="border border-stone-800 hover:bg-red-950/20 text-stone-500 hover:text-red-400 text-[10px] font-mono px-3 transition-all uppercase tracking-wider cursor-pointer"
+                                title="Reset Image Only"
+                              >
+                                {lang === "no" ? "Fjern bilde" : "Clear Photo"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SEKTION 2: REFERANSEPROSJEKTER TEKSTER */}
+            <div className="space-y-6 pt-10 border-t border-white/10 mt-12">
+              <h4 className="text-sm font-bold font-sans tracking-widest uppercase text-brand-taupe border-b border-white/5 pb-2">
+                {lang === "no" ? "2. Tilpass Prosjekttekster (Gallerikort)" : "2. Customize Project Narratives (Gallery Cards)"}
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  { id: 1, defaultTitle: "Villa Holmenkollen", defaultCat: "renovation", defaultLoc: "Oslo", defaultSize: "240 m²", defaultDur: lang === "no" ? "5 måneder" : "5 months", defaultComp: "2025" },
+                  { id: 2, defaultTitle: lang === "no" ? "Kjøkkenoppgradering Nordstrand" : "Modern Kitchen Nordstrand", defaultCat: "kitchen-bath", defaultLoc: "Nordstrand, Oslo", defaultSize: "28 m²", defaultDur: lang === "no" ? "4 uker" : "4 weeks", defaultComp: "2026" },
+                  { id: 3, defaultTitle: lang === "no" ? "Eksklusivt bad Frogner" : "Luxury Bathroom Frogner", defaultCat: "kitchen-bath", defaultLoc: "Frogner, Oslo", defaultSize: "16 m²", defaultDur: lang === "no" ? "3 uker" : "3 weeks", defaultComp: "2025" },
+                  { id: 4, defaultTitle: lang === "no" ? "Funkis tilbygg & terrasse" : "Modern Extension & Deck", defaultCat: "exterior", defaultLoc: "Asker", defaultSize: "45 m²", defaultDur: lang === "no" ? "8 uker" : "8 weeks", defaultComp: "2025" },
+                  { id: 5, defaultTitle: lang === "no" ? "Fasade & etterisolering" : "Facade & Retro-Insulation", defaultCat: "exterior", defaultLoc: "Bærum", defaultSize: "185 m²", defaultDur: lang === "no" ? "6 uker" : "6 weeks", defaultComp: "2026" },
+                  { id: 6, defaultTitle: lang === "no" ? "Klassisk totalrenovering bygård" : "Heritage Apartment Renovation", defaultCat: "renovation", defaultLoc: "Majorstuen, Oslo", defaultSize: "115 m²", defaultDur: lang === "no" ? "12 uker" : "12 weeks", defaultComp: "2025" },
+                ].map((proj) => {
+                  const isEditing = editingProject === proj.id;
+                  
+                  // Load current custom or defaults
+                  const currentTitle = localStorage.getItem(`amiri_custom_project_${proj.id}_title`) || proj.defaultTitle;
+                  const currentLoc = localStorage.getItem(`amiri_custom_project_${proj.id}_location`) || proj.defaultLoc;
+                  const currentSize = localStorage.getItem(`amiri_custom_project_${proj.id}_size`) || proj.defaultSize;
+                  const currentDur = localStorage.getItem(`amiri_custom_project_${proj.id}_duration`) || proj.defaultDur;
+                  const currentComp = localStorage.getItem(`amiri_custom_project_${proj.id}_completion`) || proj.defaultComp;
+
+                  return (
+                    <div 
+                      key={proj.id} 
+                      className="p-6 bg-stone-950/60 border border-white/5 flex flex-col justify-between hover:border-white/10 transition-colors"
+                    >
+                      {isEditing ? (
+                        <div className="space-y-4 animate-fadeIn">
+                          <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-2">
+                            <span className="text-[10px] font-mono text-brand-taupe uppercase tracking-widest font-bold">
+                              {lang === "no" ? `Redigerer Prosjekt #${proj.id}` : `Editing Project #${proj.id}`}
+                            </span>
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                              {lang === "no" ? "Prosjektnavn / Tittel" : "Project Title"}
+                            </label>
+                            <input
+                              type="text"
+                              value={projectForm.title}
+                              onChange={(e) => setProjectForm(prev => ({ ...prev, title: e.target.value }))}
+                              className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white py-2 px-3 rounded-none outline-none font-sans"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                                {lang === "no" ? "Sted" : "Location"}
+                              </label>
+                              <input
+                                type="text"
+                                value={projectForm.location}
+                                onChange={(e) => setProjectForm(prev => ({ ...prev, location: e.target.value }))}
+                                className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white py-2 px-3 rounded-none outline-none font-sans"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                                {lang === "no" ? "Størrelse (f.eks. 120 m²)" : "Size"}
+                              </label>
+                              <input
+                                type="text"
+                                value={projectForm.size}
+                                onChange={(e) => setProjectForm(prev => ({ ...prev, size: e.target.value }))}
+                                className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white py-2 px-3 rounded-none outline-none font-sans"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                                {lang === "no" ? "Varighet" : "Duration"}
+                              </label>
+                              <input
+                                type="text"
+                                value={projectForm.duration}
+                                onChange={(e) => setProjectForm(prev => ({ ...prev, duration: e.target.value }))}
+                                className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white py-2 px-3 rounded-none outline-none font-sans"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-mono uppercase tracking-widest text-stone-400 mb-1">
+                                {lang === "no" ? "Fullføringsår" : "Completion Year"}
+                              </label>
+                              <input
+                                type="text"
+                                value={projectForm.completionYear}
+                                onChange={(e) => setProjectForm(prev => ({ ...prev, completionYear: e.target.value }))}
+                                className="w-full bg-stone-900 border border-white/10 focus:border-brand-taupe text-xs text-white py-2 px-3 rounded-none outline-none font-sans"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSaveProject(proj.id)}
+                              className="flex-1 bg-brand-taupe hover:bg-white text-brand-charcoal font-bold text-[10px] font-mono tracking-widest uppercase py-2 transition-all cursor-pointer"
+                            >
+                              {lang === "no" ? "Lagre globalt" : "Save Global"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingProject(null)}
+                              className="flex-1 border border-stone-800 bg-stone-900 hover:bg-stone-800 text-stone-400 text-[10px] font-mono tracking-widest uppercase py-2 transition-all"
+                            >
+                              {lang === "no" ? "Avbryt" : "Cancel"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleResetProjectText(proj.id)}
+                              className="border border-red-500/20 bg-red-500/5 hover:bg-red-500/20 text-red-400 px-3 transition-all text-[10px] font-mono tracking-widest uppercase cursor-pointer"
+                              title="Reset"
+                            >
+                              {lang === "no" ? "Nullstill" : "Reset"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col justify-between h-full space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                              <h5 className="text-xs font-bold text-stone-200 uppercase tracking-wider font-sans">
+                                {currentTitle}
+                              </h5>
+                              <span className="text-[9px] font-mono bg-white/5 text-stone-400 px-1.5 py-0.5 uppercase">
+                                ID: {proj.id}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-light">
+                              <div>
+                                <span className="text-[9px] font-mono uppercase tracking-wider text-stone-500 block">Sted:</span>
+                                <span className="text-stone-300">{currentLoc}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-mono uppercase tracking-wider text-stone-500 block">Størrelse:</span>
+                                <span className="text-stone-300">{currentSize}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-mono uppercase tracking-wider text-stone-500 block">Varighet:</span>
+                                <span className="text-stone-300">{currentDur}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-mono uppercase tracking-wider text-stone-500 block">Fullført:</span>
+                                <span className="text-stone-300">{currentComp}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-white/5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingProject(proj.id);
+                                setProjectForm({
+                                  title: currentTitle,
+                                  location: currentLoc,
+                                  size: currentSize,
+                                  duration: currentDur,
+                                  completionYear: currentComp,
+                                });
+                              }}
+                              className="w-full bg-stone-900 hover:bg-brand-taupe/20 border border-white/5 hover:border-brand-taupe/20 text-stone-300 hover:text-brand-taupe text-[10px] font-mono tracking-widest uppercase py-2 transition-all cursor-pointer"
+                            >
+                              {lang === "no" ? "✏️ Rediger Tekster" : "✏️ Edit Texts"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

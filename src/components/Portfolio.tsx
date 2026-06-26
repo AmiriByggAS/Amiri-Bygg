@@ -57,6 +57,8 @@ export default function Portfolio({ t }: PortfolioProps) {
     return records;
   });
 
+  const [customProjectTexts, setCustomProjectTexts] = useState<Record<number, { title?: string; location?: string; size?: string; duration?: string; completion?: string }>>({});
+
   useEffect(() => {
     const handleUpdate = () => {
       try {
@@ -64,19 +66,40 @@ export default function Portfolio({ t }: PortfolioProps) {
         setAfterImage(localStorage.getItem("amiri_custom_after") || "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1600&q=90");
         
         const records: Record<number, string> = {};
+        const texts: typeof customProjectTexts = {};
         for (let i = 1; i <= 6; i++) {
           const custom = localStorage.getItem(`amiri_custom_project_${i}`);
           if (custom) records[i] = custom;
+
+          const pTitle = localStorage.getItem(`amiri_custom_project_${i}_title`);
+          const pLoc = localStorage.getItem(`amiri_custom_project_${i}_location`);
+          const pSize = localStorage.getItem(`amiri_custom_project_${i}_size`);
+          const pDur = localStorage.getItem(`amiri_custom_project_${i}_duration`);
+          const pComp = localStorage.getItem(`amiri_custom_project_${i}_completion`);
+          if (pTitle || pLoc || pSize || pDur || pComp) {
+            texts[i] = {
+              ...(pTitle && { title: pTitle }),
+              ...(pLoc && { location: pLoc }),
+              ...(pSize && { size: pSize }),
+              ...(pDur && { duration: pDur }),
+              ...(pComp && { completion: pComp }),
+            };
+          }
         }
         setCustomProjectImages(records);
+        setCustomProjectTexts(texts);
       } catch (err) {
         console.error("Failed to load portfolio imagery custom overrides", err);
       }
     };
+
+    handleUpdate();
     window.addEventListener("amiri_images_updated", handleUpdate);
+    window.addEventListener("amiri_projects_updated", handleUpdate);
     window.addEventListener("storage", handleUpdate);
     return () => {
       window.removeEventListener("amiri_images_updated", handleUpdate);
+      window.removeEventListener("amiri_projects_updated", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
     };
   }, []);
@@ -84,63 +107,63 @@ export default function Portfolio({ t }: PortfolioProps) {
   const projects: Project[] = [
     {
       id: 1,
-      title: t.nav.about === "Om oss" ? "Villa Holmenkollen" : "Villa Holmenkollen",
+      title: customProjectTexts[1]?.title || (t.nav.about === "Om oss" ? "Villa Holmenkollen" : "Villa Holmenkollen"),
       category: "renovation",
-      location: "Oslo",
-      size: "240 m²",
-      duration: t.nav.about === "Om oss" ? "5 måneder" : "5 months",
+      location: customProjectTexts[1]?.location || "Oslo",
+      size: customProjectTexts[1]?.size || "240 m²",
+      duration: customProjectTexts[1]?.duration || (t.nav.about === "Om oss" ? "5 måneder" : "5 months"),
       image: customProjectImages[1] || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-      completionYear: "2025",
+      completionYear: customProjectTexts[1]?.completion || "2025",
     },
     {
       id: 2,
-      title: t.nav.about === "Om oss" ? "Kjøkkenoppgradering Nordstrand" : "Modern Kitchen Nordstrand",
+      title: customProjectTexts[2]?.title || (t.nav.about === "Om oss" ? "Kjøkkenoppgradering Nordstrand" : "Modern Kitchen Nordstrand"),
       category: "kitchen-bath",
-      location: "Nordstrand, Oslo",
-      size: "28 m²",
-      duration: t.nav.about === "Om oss" ? "4 uker" : "4 weeks",
+      location: customProjectTexts[2]?.location || "Nordstrand, Oslo",
+      size: customProjectTexts[2]?.size || "28 m²",
+      duration: customProjectTexts[2]?.duration || (t.nav.about === "Om oss" ? "4 uker" : "4 weeks"),
       image: customProjectImages[2] || "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80",
-      completionYear: "2026",
+      completionYear: customProjectTexts[2]?.completion || "2026",
     },
     {
       id: 3,
-      title: t.nav.about === "Om oss" ? "Eksklusivt bad Frogner" : "Luxury Bathroom Frogner",
+      title: customProjectTexts[3]?.title || (t.nav.about === "Om oss" ? "Eksklusivt bad Frogner" : "Luxury Bathroom Frogner"),
       category: "kitchen-bath",
-      location: "Frogner, Oslo",
-      size: "16 m²",
-      duration: t.nav.about === "Om oss" ? "3 uker" : "3 weeks",
+      location: customProjectTexts[3]?.location || "Frogner, Oslo",
+      size: customProjectTexts[3]?.size || "16 m²",
+      duration: customProjectTexts[3]?.duration || (t.nav.about === "Om oss" ? "3 uker" : "3 weeks"),
       image: customProjectImages[3] || "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=800&q=80",
-      completionYear: "2025",
+      completionYear: customProjectTexts[3]?.completion || "2025",
     },
     {
       id: 4,
-      title: t.nav.about === "Om oss" ? "Funkis tilbygg & terrasse" : "Modern Extension & Deck",
+      title: customProjectTexts[4]?.title || (t.nav.about === "Om oss" ? "Funkis tilbygg & terrasse" : "Modern Extension & Deck"),
       category: "exterior",
-      location: "Asker",
-      size: "45 m²",
-      duration: t.nav.about === "Om oss" ? "8 uker" : "8 weeks",
+      location: customProjectTexts[4]?.location || "Asker",
+      size: customProjectTexts[4]?.size || "45 m²",
+      duration: customProjectTexts[4]?.duration || (t.nav.about === "Om oss" ? "8 uker" : "8 weeks"),
       image: customProjectImages[4] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80",
-      completionYear: "2025",
+      completionYear: customProjectTexts[4]?.completion || "2025",
     },
     {
       id: 5,
-      title: t.nav.about === "Om oss" ? "Fasade & etterisolering" : "Facade & Retro-Insulation",
+      title: customProjectTexts[5]?.title || (t.nav.about === "Om oss" ? "Fasade & etterisolering" : "Facade & Retro-Insulation"),
       category: "exterior",
-      location: "Bærum",
-      size: "185 m²",
-      duration: t.nav.about === "Om oss" ? "6 uker" : "6 weeks",
+      location: customProjectTexts[5]?.location || "Bærum",
+      size: customProjectTexts[5]?.size || "185 m²",
+      duration: customProjectTexts[5]?.duration || (t.nav.about === "Om oss" ? "6 uker" : "6 weeks"),
       image: customProjectImages[5] || "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80",
-      completionYear: "2026",
+      completionYear: customProjectTexts[5]?.completion || "2026",
     },
     {
       id: 6,
-      title: t.nav.about === "Om oss" ? "Klassisk totalrenovering bygård" : "Heritage Apartment Renovation",
+      title: customProjectTexts[6]?.title || (t.nav.about === "Om oss" ? "Klassisk totalrenovering bygård" : "Heritage Apartment Renovation"),
       category: "renovation",
-      location: "Majorstuen, Oslo",
-      size: "115 m²",
-      duration: t.nav.about === "Om oss" ? "12 uker" : "12 weeks",
+      location: customProjectTexts[6]?.location || "Majorstuen, Oslo",
+      size: customProjectTexts[6]?.size || "115 m²",
+      duration: customProjectTexts[6]?.duration || (t.nav.about === "Om oss" ? "12 uker" : "12 weeks"),
       image: customProjectImages[6] || "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=800&q=80",
-      completionYear: "2025",
+      completionYear: customProjectTexts[6]?.completion || "2025",
     },
   ];
 

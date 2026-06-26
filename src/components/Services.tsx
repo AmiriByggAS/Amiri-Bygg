@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Building,
@@ -75,15 +75,50 @@ export default function Services({
     totalentreprise: "management",
   };
 
+  const [customServices, setCustomServices] = useState<Record<string, { title?: string; description?: string; fullDetails?: string; badge?: string; image?: string | null }>>({});
+
+  useEffect(() => {
+    const loadCustomServices = () => {
+      const customs: typeof customServices = {};
+      Object.keys(t.services.items).forEach((key) => {
+        const title = localStorage.getItem(`amiri_custom_service_${key}_title`);
+        const description = localStorage.getItem(`amiri_custom_service_${key}_description`);
+        const fullDetails = localStorage.getItem(`amiri_custom_service_${key}_fullDetails`);
+        const badge = localStorage.getItem(`amiri_custom_service_${key}_badge`);
+        const image = localStorage.getItem(`amiri_custom_service_${key}_image`);
+        if (title !== null || description !== null || fullDetails !== null || badge !== null || image !== null) {
+          customs[key] = {
+            ...(title && { title }),
+            ...(description && { description }),
+            ...(fullDetails && { fullDetails }),
+            ...(badge !== null && { badge }),
+            image: image || null,
+          };
+        }
+      });
+      setCustomServices(customs);
+    };
+
+    loadCustomServices();
+    window.addEventListener("amiri_services_updated", loadCustomServices);
+    window.addEventListener("storage", loadCustomServices);
+    return () => {
+      window.removeEventListener("amiri_services_updated", loadCustomServices);
+      window.removeEventListener("storage", loadCustomServices);
+    };
+  }, [t]);
+
   const servicesData = Object.entries(t.services.items).map(([key, data]) => {
+    const custom = customServices[key] || {};
     return {
       key,
       category: categoryMap[key] || "construction",
       icon: iconMap[key] || Building,
-      title: data.title,
-      description: data.description,
-      fullDetails: data.fullDetails,
-      badge: data.badge,
+      title: custom.title || data.title,
+      description: custom.description || data.description,
+      fullDetails: custom.fullDetails || data.fullDetails,
+      badge: custom.badge !== undefined ? custom.badge : data.badge,
+      image: custom.image || null,
     };
   });
 
@@ -231,6 +266,17 @@ export default function Services({
                         {svc.title}
                       </h3>
                     </div>
+
+                    {svc.image && (
+                      <div className="aspect-[21/9] w-full relative mb-4 overflow-hidden border border-stone-200/40 bg-stone-100">
+                        <img
+                          src={svc.image}
+                          alt={svc.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
 
                     {/* Description */}
                     <p className={`text-xs sm:text-sm font-light leading-relaxed mb-6 ${
