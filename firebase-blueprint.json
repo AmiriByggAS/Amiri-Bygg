@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "MediaSettings": {
+      "title": "Media Settings",
+      "description": "Global custom media and logos synced across devices",
+      "type": "object",
+      "properties": {
+        "amiri_custom_hero": { "type": "string" },
+        "amiri_custom_before": { "type": "string" },
+        "amiri_custom_after": { "type": "string" },
+        "amiri_custom_about": { "type": "string" },
+        "amiri_custom_logo": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/amiri_settings/{settingId}": {
+      "schema": "MediaSettings",
+      "description": "Global settings document"
+    }
+  }
+}

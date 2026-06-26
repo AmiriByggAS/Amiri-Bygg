@@ -18,7 +18,7 @@ export default function PrivacyPolicyModal({ isOpen, onClose, lang }: PrivacyPol
         {
           icon: <Shield className="w-4 h-4 text-brand-taupe shrink-0 mt-0.5" />,
           title: "1. Behandlingsansvarlig",
-          text: "Behandlingsansvarlig for personopplysningene vi behandler er Amiri Bygg AS, ved daglig leder. For spørsmål angående ditt personvern eller utøvelse av dine rettigheter, kan du kontakte oss på e-post: info@amiribygg.no eller postadresse: Viggo Hansteens vei 22, 1472 Fjellhamar."
+          text: "Behandlingsansvarlig for personopplysningene vi behandler er Amiri Bygg AS, ved daglig leder. For spørsmål angående ditt personvern eller utøvelse av dine rettigheter, kan du kontakte oss på e-post: info@amiribygg.no eller postadresse: Viggo Hansteens vei, 1472 Fjellhamar."
         },
         {
           icon: <FileText className="w-4 h-4 text-brand-taupe shrink-0 mt-0.5" />,
@@ -57,7 +57,7 @@ export default function PrivacyPolicyModal({ isOpen, onClose, lang }: PrivacyPol
         {
           icon: <Shield className="w-4 h-4 text-brand-taupe shrink-0 mt-0.5" />,
           title: "1. Data Controller",
-          text: "The data controller for the personal data we process is Amiri Bygg AS, represented by the Managing Director. For questions regarding your privacy or to exercise your rights, please contact us by email: info@amiribygg.no or mailing address: Viggo Hansteens vei 22, 1472 Fjellhamar."
+          text: "The data controller for the personal data we process is Amiri Bygg AS, represented by the Managing Director. For questions regarding your privacy or to exercise your rights, please contact us by email: info@amiribygg.no or mailing address: Viggo Hansteens vei, 1472 Fjellhamar."
         },
         {
           icon: <FileText className="w-4 h-4 text-brand-taupe shrink-0 mt-0.5" />,

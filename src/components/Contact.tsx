@@ -171,7 +171,7 @@ export default function Contact({
             <div className="space-y-6">
               <a
                 id="contact-call-link"
-                href="tel:+4745513415"
+                href="tel:+4790061211"
                 className="flex items-center gap-4 p-4 border border-stone-200 hover:border-brand-taupe bg-brand-sand hover:bg-white transition-all duration-300 rounded-none"
               >
                 <div className="w-10 h-10 rounded-none bg-brand-charcoal border border-white/5 flex items-center justify-center text-brand-taupe">
@@ -181,7 +181,7 @@ export default function Contact({
                   <p className="text-[10px] font-mono uppercase text-stone-400 tracking-wider mb-0.5">
                     {t.contact.phoneText}
                   </p>
-                  <p className="text-sm font-bold text-brand-charcoal">455 13 415</p>
+                  <p className="text-sm font-bold text-brand-charcoal">900 61 211</p>
                 </div>
               </a>
 
@@ -209,7 +209,7 @@ export default function Contact({
                   <p className="text-[10px] font-mono uppercase text-stone-400 tracking-wider mb-0.5">
                     {t.contact.officeText}
                   </p>
-                  <p className="text-sm font-bold text-brand-charcoal">Viggo Hansteens vei 22, 1472 Fjellhamar</p>
+                  <p className="text-sm font-bold text-brand-charcoal">Viggo Hansteens vei, 1472 Fjellhamar</p>
                 </div>
               </div>
             </div>

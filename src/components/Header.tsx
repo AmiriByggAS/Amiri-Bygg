@@ -47,8 +47,8 @@ export default function Header({
         <div className="flex items-center gap-6">
           <span className="flex items-center gap-1.5">
             <Phone className="w-3.5 h-3.5 text-brand-taupe" />
-            <a href="tel:+4745513415" className="hover:text-brand-taupe transition-colors">
-              455 13 415
+            <a href="tel:+4790061211" className="hover:text-brand-taupe transition-colors">
+              900 61 211
             </a>
           </span>
           <span className="hidden md:flex items-center gap-1.5">
@@ -154,8 +154,8 @@ export default function Header({
                 <p className="text-[10px] text-stone-400 uppercase tracking-tighter">
                   {lang === "no" ? "Ring oss" : "Call us"}
                 </p>
-                <a href="tel:+4745513415" className="text-sm font-bold text-brand-charcoal hover:text-brand-taupe transition-colors font-display">
-                  455 13 415
+                <a href="tel:+4790061211" className="text-sm font-bold text-brand-charcoal hover:text-brand-taupe transition-colors font-display">
+                  900 61 211
                 </a>
               </div>
               <button
@@ -227,11 +227,11 @@ export default function Header({
                 <div className="pt-4 flex flex-col gap-3">
                   <a
                     id="mobile-call-link"
-                    href="tel:+4745513415"
+                    href="tel:+4790061211"
                     className="flex items-center justify-center gap-2 w-full py-3 bg-stone-100 text-stone-900 font-semibold text-sm tracking-wider uppercase"
                   >
                     <Phone className="w-4 h-4" />
-                    {t.nav.callUs}: 455 13 415
+                    {t.nav.callUs}: 900 61 211
                   </a>
                   <button
                     id="mobile-quote-btn"

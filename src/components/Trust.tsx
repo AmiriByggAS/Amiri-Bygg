@@ -41,7 +41,7 @@ export default function Trust({ t }: TrustProps) {
   ];
 
   const stats = [
-    { value: "250+", label: t.trust.stat1Label },
+    { value: "400+", label: t.trust.stat1Label },
     { value: "98%", label: t.trust.stat2Label },
     { value: "10", label: t.trust.stat3Label },
     { value: "2M NOK", label: t.trust.stat4Label },

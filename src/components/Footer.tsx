@@ -179,12 +179,12 @@ export default function Footer({
             <ul className="space-y-4 text-xs">
               <li className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-stone-500 mt-0.5 flex-shrink-0" />
-                <span>Viggo Hansteens vei 22, 1472 Fjellhamar</span>
+                <span>Viggo Hansteens vei, 1472 Fjellhamar</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-stone-500 flex-shrink-0" />
-                <a href="tel:+4745513415" className="hover:text-white transition-colors">
-                  455 13 415
+                <a href="tel:+4790061211" className="hover:text-white transition-colors">
+                  900 61 211
                 </a>
               </li>
               <li className="flex items-center gap-3">
