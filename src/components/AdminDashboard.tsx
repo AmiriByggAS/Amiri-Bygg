@@ -441,7 +441,7 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
   };
 
   // Compress image on the client side to keep localStorage quota happy and Firestore fast
-  const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.8): Promise<string> => {
+  const compressImage = (file: File, maxWidth = 1000, maxHeight = 1000, quality = 0.65): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -494,7 +494,7 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
     setUploadLoading((prev) => ({ ...prev, [key]: true }));
     try {
       // 1. Compress image to fit 1.5MB localstorage & Firestore rules instantly
-      const base64 = await compressImage(file, 1200, 1200, 0.8);
+      const base64 = await compressImage(file, 1000, 1000, 0.65);
       
       // 2. Save locally
       localStorage.setItem(key, base64);
@@ -509,12 +509,13 @@ export default function AdminDashboard({ t, lang, refreshCounter }: AdminDashboa
 
       // 3. Sync to Firestore global database
       await saveGlobalMediaSetting(key, base64);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to compress or upload image:", err);
+      const errMsg = err?.message || String(err);
       alert(
         lang === "no" 
-          ? "Feil under opplasting eller komprimering av bilde. Prøv et annet bilde."
-          : "Error uploading or compressing image. Please try another image."
+          ? `Feil under opplasting eller komprimering av bilde: ${errMsg}`
+          : `Error uploading or compressing image: ${errMsg}`
       );
     } finally {
       setUploadLoading((prev) => ({ ...prev, [key]: false }));
