@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import amiriDefaultLogo from "../assets/images/amiri_logo_1782472475944.jpg";
 
 interface LogoProps {
   className?: string;
@@ -85,139 +86,12 @@ export default function Logo({
 
   return (
     <div className="flex items-center gap-3 select-none">
-      {customLogo ? (
-        // Render exact custom image uploaded by the user!
-        <img 
-          src={customLogo} 
-          alt="Amiri Bygg Logo" 
-          className={`${className} object-contain`}
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        /* Crisp Symmetrical SVG Logo of Amiri Bygg */
-        <svg 
-          className={`${className} flex-shrink-0`} 
-          viewBox="0 0 200 200" 
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
-          id="amiri-bygg-logo-svg"
-        >
-          {/* Solid white circular background inside the outer border to make the badge pop, just like physical stickers */}
-          {hasBadgeBg && (
-            <circle 
-              cx="100" 
-              cy="100" 
-              r="90" 
-              fill="#FFFFFF" 
-            />
-          )}
-
-          {/* Outer Circular Border - Thick elegant navy ring */}
-          {variant === "full" && (
-            <circle 
-              cx="100" 
-              cy="100" 
-              r="90" 
-              stroke={navyColor} 
-              strokeWidth="6" 
-              fill="none"
-            />
-          )}
-
-          {/* Top Text: "AMIRI BYGG AS" in bold warm orange (Rotated text nodes for 100% browser compatibility) */}
-          {variant === "full" && (
-            <g className="font-sans font-black select-none text-[17px]" fill={orangeColor}>
-              {topLetters.map((item, idx) => (
-                <text
-                  key={`top-${idx}`}
-                  x="0"
-                  y="0"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  transform={`translate(${item.x}, ${item.y}) rotate(${item.rotation})`}
-                >
-                  {item.char}
-                </text>
-              ))}
-            </g>
-          )}
-
-          {/* Bottom Text: "HUS OG HÅNDVERK" in bold deep navy (Rotated text nodes for 100% browser compatibility) */}
-          {variant === "full" && (
-            <g className="font-sans font-black select-none text-[13px]" fill={navyColor}>
-              {bottomLetters.map((item, idx) => (
-                <text
-                  key={`bottom-${idx}`}
-                  x="0"
-                  y="0"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  transform={`translate(${item.x}, ${item.y}) rotate(${item.rotation})`}
-                >
-                  {item.char}
-                </text>
-              ))}
-            </g>
-          )}
-
-          {/* --- Central Illustration: Symmetrical Roofs & House --- */}
-          {/* Outer navy roof with vertical legs */}
-          <path 
-            d="M 100,68 L 155,115 L 155,122 L 141,122 L 141,115 L 100,80 L 59,115 L 59,122 L 45,122 L 45,115 Z" 
-            fill={isDarkBg && variant === "icon" ? "#FFFFFF" : navyColor} 
-          />
-          
-          {/* Inner navy roof with vertical legs */}
-          <path 
-            d="M 100,83 L 138,115 L 138,122 L 125,122 L 125,115 L 100,95 L 75,115 L 75,122 L 62,122 L 62,115 Z" 
-            fill={isDarkBg && variant === "icon" ? "#FFFFFF" : navyColor} 
-          />
-
-          {/* Horizontal base line beneath the house structure */}
-          <rect 
-            x="41" 
-            y="123" 
-            width="118" 
-            height="5" 
-            fill={isDarkBg && variant === "icon" ? "#FFFFFF" : navyColor} 
-          />
-
-          {/* Symmetrical Orange/Yellow House Body */}
-          <rect 
-            x="86" 
-            y="104" 
-            width="28" 
-            height="19" 
-            fill={orangeColor} 
-          />
-          {/* Triangle roof for the small inner house */}
-          <polygon 
-            points="76,104 100,82 124,104" 
-            fill={orangeColor} 
-          />
-
-          {/* Four Window Panes inside the orange house */}
-          {(() => {
-            const windowFill = variant === "full" 
-              ? "#FFFFFF" 
-              : (isDarkBg ? "#111827" : "#FFFFFF");
-            return (
-              <>
-                <rect x="93" y="100" width="6" height="6" fill={windowFill} />
-                <rect x="101" y="100" width="6" height="6" fill={windowFill} />
-                <rect x="93" y="108" width="6" height="6" fill={windowFill} />
-                <rect x="101" y="108" width="6" height="6" fill={windowFill} />
-              </>
-            );
-          })()}
-
-          {/* Four-Point Golden Star (Sparkle) at the top peak of the roof */}
-          <path 
-            d="M 100,36 Q 100,48 112,48 Q 100,48 100,60 Q 100,48 88,48 Q 100,48 100,36 Z" 
-            fill={orangeColor} 
-          />
-        </svg>
-      )}
+      <img 
+        src={customLogo || amiriDefaultLogo} 
+        alt="Amiri Bygg Logo" 
+        className={`${className} object-contain`}
+        referrerPolicy="no-referrer"
+      />
 
       {showText && (
         <div className="flex flex-col text-left">

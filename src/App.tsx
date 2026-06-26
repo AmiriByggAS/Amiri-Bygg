@@ -19,6 +19,7 @@ import PromoModal from "./components/PromoModal";
 import CookieConsent from "./components/CookieConsent";
 import PrivacyPolicyModal from "./components/PrivacyPolicyModal";
 import { syncGlobalMediaToLocal } from "./lib/firebase";
+import amiriDefaultLogo from "./assets/images/amiri_logo_1782472475944.jpg";
 
 export default function App() {
   const [lang, setLang] = useState<"no" | "en">("no");
@@ -62,9 +63,9 @@ export default function App() {
           faviconLink.href = customLogo;
           faviconLink.type = customLogo.startsWith("data:image/svg+xml") ? "image/svg+xml" : "image/png";
         } else {
-          // Fallback beautiful SVG logo
-          faviconLink.href = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='90' fill='%23FFFFFF' stroke='%230B2240' stroke-width='6'/%3E%3Cpath d='M 100,68 L 155,115 L 155,122 L 141,122 L 141,115 L 100,80 L 59,115 L 59,122 L 45,122 L 45,115 Z' fill='%230B2240'/%3E%3Cpath d='M 100,83 L 138,115 L 138,122 L 125,122 L 125,115 L 100,95 L 75,115 L 75,122 L 62,122 L 62,115 Z' fill='%230B2240'/%3E%3Crect x='41' y='123' width='118' height='6' fill='%23EE9D26'/%3E%3C/svg%3E";
-          faviconLink.type = "image/svg+xml";
+          // Fallback beautiful physical logo
+          faviconLink.href = amiriDefaultLogo;
+          faviconLink.type = "image/jpeg";
         }
       } catch (err) {
         console.error("Failed to update favicon:", err);
